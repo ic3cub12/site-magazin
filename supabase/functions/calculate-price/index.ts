@@ -305,7 +305,7 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const result = calculatePrice(body);
+    const result = await calculatePrice(body);
 
     return new Response(JSON.stringify(result), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

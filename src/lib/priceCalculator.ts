@@ -40,7 +40,30 @@ export async function calculateAIPrice(req: PriceRequest): Promise<PriceResult> 
     throw new Error(err.error || "Price calculation failed");
   }
 
-  return response.json();
+  const result = await response.json();
+  return normalizePriceResult(result);
+}
+
+export function normalizePriceResult(result: Partial<PriceResult> | null | undefined): PriceResult {
+  const safeNumber = (value: unknown, fallback = 0) => {
+    const numeric = typeof value === "number" ? value : Number(value);
+    return Number.isFinite(numeric) ? numeric : fallback;
+  };
+
+  const suggested = safeNumber(result?.suggested_price);
+  const min = safeNumber(result?.price_min, Math.round(suggested * 0.85));
+  const max = safeNumber(result?.price_max, Math.round(suggested * 1.15));
+
+  return {
+    suggested_price: suggested,
+    price_min: Math.min(min, max),
+    price_max: Math.max(min, max),
+    reasoning: result?.reasoning || "Estimare calculata pe baza datelor disponibile.",
+    market_sources: Array.isArray(result?.market_sources) ? result.market_sources : [],
+    confidence: result?.confidence === "high" || result?.confidence === "medium" || result?.confidence === "low"
+      ? result.confidence
+      : "low",
+  };
 }
 
 export function formatPrice(price?: number | null): string {
@@ -48,9 +71,5 @@ export function formatPrice(price?: number | null): string {
     return "Pret indisponibil";
   }
 
-  return price.toLocaleString("ro-RO", {
-    style: "currency",
-    currency: "RON",
-    maximumFractionDigits: 0,
-  });
+  return price.toLocaleString("ro-RO") + " RON";
 }

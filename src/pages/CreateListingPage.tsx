@@ -515,7 +515,7 @@ export default function CreateListingPage({ onNavigate }: CreateListingPageProps
                       </div>
 
                       <div className="bg-white/70 rounded-xl p-3">
-                        <p className="text-xs text-blue-800 leading-relaxed">{aiResult.reasoning}</p>
+                        <p className="text-xs text-blue-800 leading-relaxed">{aiResult.reasoning || "Estimare calculata pe baza datelor disponibile."}</p>
                       </div>
 
                       <button
@@ -524,12 +524,12 @@ export default function CreateListingPage({ onNavigate }: CreateListingPageProps
                         className="flex items-center gap-1 text-xs text-blue-600 font-medium"
                       >
                         <TrendingUp className="w-3 h-3" />
-                        Surse date ({aiResult.market_sources.length})
+                        Surse date ({(aiResult.market_sources || []).length})
                         {showSourcesExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
                       </button>
                       {showSourcesExpanded && (
                         <div className="flex flex-wrap gap-1.5">
-                          {aiResult.market_sources.map(s => (
+                          {(aiResult.market_sources || []).map(s => (
                             <span key={s} className="bg-white border border-blue-200 text-blue-700 text-xs px-2 py-1 rounded-full">{s}</span>
                           ))}
                         </div>
