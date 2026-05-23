@@ -37,6 +37,13 @@ export default function CreateListingPage({ onNavigate }: CreateListingPageProps
   const [imageError, setImageError] = useState("");
 
   const catConfig = getCategoryConfig(category);
+  const requiredAttributeKeys = category === "cars"
+    ? ["marca", "model", "an_fabricatie", "kilometraj", "combustibil"]
+    : category === "real_estate"
+    ? ["oras", "zona", "suprafata"]
+    : [];
+
+  const missingRequiredAttributes = requiredAttributeKeys.filter((key) => !attributes[key]?.trim());
 
   function handleAttributeChange(key: string, value: string) {
     setAttributes(prev => ({ ...prev, [key]: value }));
@@ -150,7 +157,7 @@ export default function CreateListingPage({ onNavigate }: CreateListingPageProps
   }
 
   const isStep1Valid = title.length >= 5 && category && subcategory;
-  const isStep2Valid = condition;
+  const isStep2Valid = Boolean(condition) && missingRequiredAttributes.length === 0;
   const isStep3Valid = true;
 
   return (
@@ -307,8 +314,18 @@ export default function CreateListingPage({ onNavigate }: CreateListingPageProps
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-3">
                       Caracteristici specifice
-                      <span className="ml-1 text-slate-400 font-normal">(recomandat pentru un pret mai precis)</span>
+                      <span className="ml-1 text-slate-400 font-normal">(campurile cu * ajuta AI-ul sa compare corect piata)</span>
                     </label>
+                    {category === "cars" && (
+                      <div className="mb-4 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-xs text-blue-800 leading-relaxed">
+                        Pentru masini, completeaza marca, model, anul, kilometrajul si combustibilul. Calculatorul AI va cauta comparabile dupa generatie, motorizare, km si an pe AutoVit, mobile.de si AutoScout24.
+                      </div>
+                    )}
+                    {category === "real_estate" && (
+                      <div className="mb-4 rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-xs text-emerald-800 leading-relaxed">
+                        Pentru imobiliare si terenuri, zona si suprafata influenteaza cel mai mult pretul. Completeaza orasul, zona si mp pentru o estimare mai buna.
+                      </div>
+                    )}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {catConfig.attributes.map(attr => (
                         <div key={attr.key}>
@@ -337,6 +354,13 @@ export default function CreateListingPage({ onNavigate }: CreateListingPageProps
                   </div>
                 )}
               </div>
+
+
+                {missingRequiredAttributes.length > 0 && (
+                  <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-700">
+                    Completeaza campurile obligatorii marcate cu * pentru o estimare AI mai exacta.
+                  </div>
+                )}
 
               <div className="flex gap-3">
                 <button type="button" onClick={() => setStep(1)} className="flex-1 bg-white border border-slate-200 text-slate-700 font-semibold py-4 rounded-2xl hover:bg-[#eef2f7] transition-colors">
