@@ -62,18 +62,25 @@ export default function CreateListingPage({ onNavigate }: CreateListingPageProps
   }
 
   function addImageUrl() {
-    const url = imageUrl.trim();
-    if (url && images.length < 10) {
-      setImages(prev => [...prev, url]);
-      setImageUrl("");
-    }
+   async function uploadImage(file: File) {
+  const fileExt = file.name.split('.').pop();
+  const fileName = `${Date.now()}.${fileExt}`;
+
+  const { error } = await supabase.storage
+    .from('listing-images')
+    .upload(fileName, file);
+
+  if (error) {
+    console.error(error);
+    return;
   }
 
-  async function handleSubmit(e: FormEvent) {
-    e.preventDefault();
-    if (!user) return;
+  const { data } = supabase.storage
+    .from('listing-images')
+    .getPublicUrl(fileName);
 
-    setSubmitting(true);
+  setImages(prev => [...prev, data.publicUrl]);
+}
 
     const finalPrice = useAIPrice ? null : (askingPrice ? parseFloat(askingPrice) : null);
 
@@ -322,13 +329,13 @@ export default function CreateListingPage({ onNavigate }: CreateListingPageProps
 
                 <div className="flex gap-2">
                   <input
-                    type="url"
-                    value={imageUrl}
-                    onChange={e => setImageUrl(e.target.value)}
-                    onKeyDown={e => e.key === "Enter" && (e.preventDefault(), addImageUrl())}
-                    placeholder="https://exemplu.com/imagine.jpg"
-                    className="flex-1 px-4 py-3 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
+  type="file"
+  accept="image/*"
+  onChange={(e) => {
+    const file = e.target.files?.[0];
+    if (file) uploadImage(file);
+  }}
+/>
                   <button
                     type="button"
                     onClick={addImageUrl}
