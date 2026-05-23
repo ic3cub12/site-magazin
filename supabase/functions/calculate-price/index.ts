@@ -230,10 +230,8 @@ function generalSimilarityScore(req: PriceRequest, item: Omit<MarketListing, "sc
 function minimumRelevantPriceRon(req: PriceRequest): number {
   const a = attrs(req);
   if (req.category === "cars") {
-    if (isBmwX5M(req)) return 100_000;
-    const brand = normalize(`${a.marca || ""} ${req.title}`);
-    if (includesAny(brand, ["bmw", "mercedes", "audi", "porsche", "lexus", "land rover"])) return 18_000;
-    return 4_000;
+    const profile = carValueProfile(req);
+    return Math.round(profile.minEur * EUR_TO_RON * 0.72);
   }
   if (req.category === "real_estate") return 25_000;
   return 5;
@@ -295,54 +293,113 @@ function trimOutliers(values: number[]): number[] {
   return values.filter((v) => v >= med * 0.55 && v <= med * 1.65);
 }
 
-function carHeuristic(req: PriceRequest): PriceResponse {
+function carValueProfile(req: PriceRequest) {
   const a = attrs(req);
-  const year = num(a.an_fabricatie) || new Date().getFullYear() - 8;
-  const km = num(a.kilometraj) || 140_000;
-  let min = 8_000 * EUR_TO_RON;
-  let max = 24_000 * EUR_TO_RON;
+  const text = compactText([a.marca, a.model, a.generatie, a.varianta_trim, req.title, req.description].filter(Boolean).join(" "));
+  const year = num(a.an_fabricatie) || new Date().getFullYear() - 7;
 
-  if (isBmwX5M(req)) {
-    const gen = compactText(a.generatie || req.title);
-    if (gen.includes("f85") || (year >= 2015 && year <= 2018)) {
-      min = 30_000 * EUR_TO_RON;
-      max = 48_000 * EUR_TO_RON;
-    } else {
-      min = 45_000 * EUR_TO_RON;
-      max = 95_000 * EUR_TO_RON;
-    }
-  } else {
-    const brand = normalize(`${a.marca || ""} ${req.title}`);
-    if (includesAny(brand, ["bmw", "mercedes", "audi", "porsche", "lexus", "land rover"])) {
-      min = 14_000 * EUR_TO_RON;
-      max = 60_000 * EUR_TO_RON;
-    }
+  // Values are EUR mid-market estimates for clean, sellable second-hand vehicles.
+  // They intentionally act as a guardrail when live search returns parts/dezmembrari/wrong trims.
+  if ((text.includes("bmwx5m") || text.includes("x5m")) && (text.includes("f85") || (year >= 2015 && year <= 2018))) {
+    return { minEur: 30000, midEur: 38500, maxEur: 50000, label: "BMW X5 M F85" };
+  }
+  if ((text.includes("bmwx5m") || text.includes("x5m")) && (text.includes("g05") || year >= 2019)) {
+    return { minEur: 62000, midEur: 78000, maxEur: 105000, label: "BMW X5 M G05" };
+  }
+  if (text.includes("bmwx5") || text.includes("x5")) {
+    if (year >= 2019) return { minEur: 35000, midEur: 52000, maxEur: 85000, label: "BMW X5 G05" };
+    if (year >= 2014) return { minEur: 18000, midEur: 28500, maxEur: 45000, label: "BMW X5 F15/F85" };
   }
 
+  const premiumPerformance = ["amg", "rs", "mcompetition", "competition", "porsche", "m5", "m3", "m4", "gle63", "glc63", "rs6", "rsq8"].some((w) => text.includes(w));
+  if (premiumPerformance) return { minEur: 28000, midEur: 52000, maxEur: 110000, label: "model premium/performance" };
+
+  const premium = ["bmw", "mercedes", "audi", "porsche", "lexus", "landrover", "rangerover", "volvo", "jaguar"].some((w) => text.includes(w));
+  if (premium) {
+    if (year >= 2021) return { minEur: 28000, midEur: 48000, maxEur: 90000, label: "model premium recent" };
+    if (year >= 2016) return { minEur: 13000, midEur: 26000, maxEur: 55000, label: "model premium second-hand" };
+    return { minEur: 7000, midEur: 15000, maxEur: 35000, label: "model premium vechi" };
+  }
+
+  if (year >= 2021) return { minEur: 12000, midEur: 22000, maxEur: 45000, label: "auto recent" };
+  if (year >= 2016) return { minEur: 6000, midEur: 12000, maxEur: 28000, label: "auto second-hand" };
+  return { minEur: 2500, midEur: 6500, maxEur: 15000, label: "auto vechi" };
+}
+
+function carAdjustmentFactor(req: PriceRequest) {
+  const a = attrs(req);
+  const year = num(a.an_fabricatie) || new Date().getFullYear() - 7;
+  const km = num(a.kilometraj) || 150000;
   let factor = 1;
+
   const age = new Date().getFullYear() - year;
-  if (age <= 3) factor *= 1.12;
-  else if (age <= 6) factor *= 1.02;
-  else if (age <= 10) factor *= 0.92;
+  if (age <= 2) factor *= 1.12;
+  else if (age <= 5) factor *= 1.05;
+  else if (age <= 8) factor *= 1.0;
+  else if (age <= 12) factor *= 0.9;
   else factor *= 0.78;
 
-  if (km < 70_000) factor *= 1.12;
-  else if (km < 140_000) factor *= 1.0;
-  else if (km < 220_000) factor *= 0.88;
-  else factor *= 0.72;
+  if (km < 40000) factor *= 1.14;
+  else if (km < 90000) factor *= 1.07;
+  else if (km < 150000) factor *= 1.0;
+  else if (km < 220000) factor *= 0.89;
+  else factor *= 0.73;
 
-  if (a.istoric_service === "Complet") factor *= 1.04;
-  if (a.daune && a.daune !== "Fara daune" && a.daune !== "Nu stiu") factor *= 0.9;
+  const conditionFactor = CONDITION_MULTIPLIERS[req.condition] || 0.72;
+  factor *= 0.78 + conditionFactor * 0.28;
 
-  const mid = ((min + max) / 2) * factor;
-  const suggested = Math.round(mid / 500) * 500;
+  const service = normalize(a.istoric_service || "");
+  if (service.includes("reprezentanta")) factor *= 1.06;
+  else if (service.includes("complet")) factor *= 1.035;
+  else if (service.includes("nu exista")) factor *= 0.92;
+
+  const damage = normalize(a.daune || "");
+  if (damage.includes("fara")) factor *= 1.03;
+  else if (damage.includes("minore")) factor *= 0.94;
+  else if (damage.includes("reparate")) factor *= 0.88;
+  else if (damage.includes("majore")) factor *= 0.7;
+
+  if (normalize(a.tva_deductibil || "") === "da") factor *= 1.03;
+  return Math.max(0.55, Math.min(1.35, factor));
+}
+
+function roundEur(value: number) {
+  if (value >= 30000) return Math.round(value / 500) * 500;
+  if (value >= 10000) return Math.round(value / 250) * 250;
+  return Math.round(value / 100) * 100;
+}
+
+function carHeuristic(req: PriceRequest): PriceResponse {
+  const a = attrs(req);
+  const profile = carValueProfile(req);
+  const factor = carAdjustmentFactor(req);
+
+  const suggestedEur = roundEur(profile.midEur * factor);
+  const minEur = roundEur(Math.max(profile.minEur, suggestedEur * 0.84));
+  const maxEur = roundEur(Math.min(profile.maxEur, suggestedEur * 1.18));
+
+  const details = [
+    a.marca && `marca ${a.marca}`,
+    a.model && `model ${a.model}`,
+    a.generatie && `generatie ${a.generatie}`,
+    a.an_fabricatie && `an ${a.an_fabricatie}`,
+    a.kilometraj && `${Number(a.kilometraj).toLocaleString("ro-RO")} km`,
+    a.motorizare && `motor ${a.motorizare}`,
+    a.putere_cp && `${a.putere_cp} CP`,
+    a.combustibil,
+    a.cutl_viteze || a.cutie_viteze,
+    a.tractiune,
+    a.istoric_service && `service: ${a.istoric_service}`,
+    a.daune && `daune: ${a.daune}`,
+  ].filter(Boolean).join(", ");
+
   return {
-    suggested_price: suggested,
-    price_min: Math.round(Math.max(min * 0.85, suggested * 0.86) / 500) * 500,
-    price_max: Math.round(Math.min(max * 1.12, suggested * 1.16) / 500) * 500,
-    reasoning: `Estimare auto bazata pe marca/model/generatie/an/km/motorizare. Completeaza toate campurile auto pentru matching mai bun pe AutoVit, mobile.de si AutoScout24. Estimare: ~${Math.round(suggested / EUR_TO_RON).toLocaleString("ro-RO")} EUR.`,
-    market_sources: ["Model auto detaliat", "autovit.ro", "mobile.de", "autoscout24.com"],
-    confidence: [a.marca, a.model, a.an_fabricatie, a.kilometraj, a.combustibil].filter(Boolean).length >= 5 ? "medium" : "low",
+    suggested_price: suggestedEur * EUR_TO_RON,
+    price_min: minEur * EUR_TO_RON,
+    price_max: maxEur * EUR_TO_RON,
+    reasoning: `Estimare auto Pro pentru ${profile.label}. Am folosit datele introduse (${details || "date limitate"}) si praguri de piata pentru a evita rezultate gresite de tip piese/dezmembrari sau modele inferioare. Recomandare: ~${suggestedEur.toLocaleString("ro-RO")} EUR / ${(suggestedEur * EUR_TO_RON).toLocaleString("ro-RO")} RON. Pentru precizie maxima completeaza generatia, motorizarea, CP, km, service si daune.`,
+    market_sources: ["Auto Valuation Pro", "autovit.ro", "mobile.de", "autoscout24.com", "olx.ro/auto"],
+    confidence: [a.marca, a.model, a.generatie, a.an_fabricatie, a.kilometraj, a.combustibil, a.putere_cp].filter(Boolean).length >= 6 ? "high" : "medium",
   };
 }
 
@@ -411,7 +468,18 @@ async function calculatePrice(req: PriceRequest): Promise<PriceResponse> {
   }
 
   const med = median(cleaned);
-  if ((req.category === "cars" || req.category === "real_estate") && med < fallback.suggested_price * 0.55) {
+  if (req.category === "cars") {
+    const lowGuard = fallback.price_min * 0.82;
+    const highGuard = fallback.price_max * 1.22;
+    if (med < lowGuard || med > highGuard) {
+      return {
+        ...fallback,
+        reasoning: `${fallback.reasoning} Am gasit rezultate live, dar mediana (${Math.round(med / EUR_TO_RON).toLocaleString("ro-RO")} EUR) este in afara intervalului realist pentru datele introduse. Am ignorat comparabilele suspecte si am pastrat evaluarea Pro.`,
+        market_sources: Array.from(new Set([...fallback.market_sources, ...candidates.slice(0, 6).map((item) => item.source), "Filtru similaritate strict"])),
+        confidence: fallback.confidence,
+      };
+    }
+  } else if ((req.category === "real_estate") && med < fallback.suggested_price * 0.55) {
     return {
       ...fallback,
       reasoning: `${fallback.reasoning} Am gasit rezultate live, dar preturile sunt prea mici fata de modelul detaliat si probabil includ anunturi nepotrivite. Am protejat estimarea folosind praguri pe categorie si matching dupa campuri.`,
@@ -420,7 +488,8 @@ async function calculatePrice(req: PriceRequest): Promise<PriceResponse> {
     };
   }
 
-  const suggested = Math.round(med / 500) * 500;
+  const blended = req.category === "cars" ? (med * 0.45 + fallback.suggested_price * 0.55) : med;
+  const suggested = Math.round(blended / 500) * 500;
   const sorted = [...cleaned].sort((a, b) => a - b);
   const priceMin = Math.round(sorted[Math.max(0, Math.floor(sorted.length * 0.25))] / 500) * 500;
   const priceMax = Math.round(sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * 0.75))] / 500) * 500;
