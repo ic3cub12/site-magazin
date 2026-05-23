@@ -107,7 +107,7 @@ function cleanText(value = "") {
 
 function buildSearchQuery(req: PriceRequest): string {
   const attrs = req.attributes || {};
-  const important = [
+  const queryParts = [
     req.title,
     req.subcategory,
     attrs.marca || attrs.brand,
@@ -115,41 +115,116 @@ function buildSearchQuery(req: PriceRequest): string {
     attrs.an_fabricatie || attrs.an,
     attrs.kilometraj ? `${attrs.kilometraj} km` : "",
     attrs.suprafata ? `${attrs.suprafata} mp` : "",
-    attrs.stocare || attrs.capacitate,
-    "second hand pret",
   ].filter(Boolean);
 
+  const marketIntent = req.category === "cars"
+    ? "autoturism vanzare second hand pret EUR"
+    : req.category === "real_estate"
+      ? "vanzare pret EUR"
+      : "second hand pret";
+
   const domains = SOURCE_DOMAINS[req.category] || SOURCE_DOMAINS.other;
-  return `${important.join(" ")} (${domains.map((d) => `site:${d}`).join(" OR ")})`;
+  return `${queryParts.join(" ")} ${marketIntent} (${domains.map((d) => `site:${d}`).join(" OR ")})`;
 }
 
-function parseRonPrice(text: string): number | undefined {
+function extractPriceRon(text: string): number | undefined {
   const normalized = text
     .replace(/\u00a0/g, " ")
     .replace(/,/g, ".")
     .replace(/\s+/g, " ");
 
-  const patterns = [
-    /(?:pret|price)?\s*([0-9]{1,3}(?:[ .][0-9]{3})+|[0-9]{2,7})(?:\s*)(lei|ron)\b/i,
-    /(?:€|eur)\s*([0-9]{1,3}(?:[ .][0-9]{3})+|[0-9]{2,7})\b/i,
-    /\b([0-9]{1,3}(?:[ .][0-9]{3})+|[0-9]{2,7})(?:\s*)(€|eur)\b/i,
+  const eurPatterns = [
+    /(?:€|eur)\s*([0-9]{1,3}(?:[ .][0-9]{3})+|[0-9]{3,7})\b/i,
+    /\b([0-9]{1,3}(?:[ .][0-9]{3})+|[0-9]{3,7})(?:\s*)(€|eur)\b/i,
   ];
 
-  for (const pattern of patterns) {
+  for (const pattern of eurPatterns) {
     const match = normalized.match(pattern);
     if (!match) continue;
+    const raw = (match[1] || "").replace(/[ .]/g, "");
+    const amount = Number(raw);
+    if (Number.isFinite(amount) && amount > 0) return Math.round(amount * 5);
+  }
 
-    const amountText = (match[1] || match[2] || "").replace(/[ .]/g, "");
-    const amount = Number(amountText);
-    if (!Number.isFinite(amount) || amount <= 0) continue;
+  const ronPatterns = [
+    /(?:pret|price)?\s*([0-9]{1,3}(?:[ .][0-9]{3})+|[0-9]{2,7})(?:\s*)(lei|ron)\b/i,
+    /\b([0-9]{1,3}(?:[ .][0-9]{3})+|[0-9]{2,7})(?:\s*)(lei|ron)\b/i,
+  ];
 
-    const currency = normalized.slice(match.index || 0, (match.index || 0) + match[0].length).toLowerCase();
-    const priceRon = currency.includes("€") || currency.includes("eur") ? amount * 5 : amount;
-
-    if (priceRon >= 5 && priceRon <= 10_000_000) return Math.round(priceRon);
+  for (const pattern of ronPatterns) {
+    const match = normalized.match(pattern);
+    if (!match) continue;
+    const raw = (match[1] || "").replace(/[ .]/g, "");
+    const amount = Number(raw);
+    if (Number.isFinite(amount) && amount > 0) return Math.round(amount);
   }
 
   return undefined;
+}
+
+function containsAny(text: string, words: string[]) {
+  const lower = text.toLowerCase();
+  return words.some((word) => lower.includes(word));
+}
+
+function normalizeModelText(req: PriceRequest) {
+  const attrs = req.attributes || {};
+  return cleanText([
+    req.title,
+    req.subcategory,
+    attrs.marca || attrs.brand,
+    attrs.model,
+    attrs.an_fabricatie || attrs.an,
+  ].filter(Boolean).join(" ")).toLowerCase();
+}
+
+function isRelevantListing(req: PriceRequest, item: MarketListing): boolean {
+  const text = `${item.title} ${item.snippet} ${item.link}`.toLowerCase();
+
+  if (req.category === "cars") {
+    const excluded = [
+      "piese", "dezmembr", "dezmembrez", "jante", "anvelope", "cauciuc", "far", "stop", "bara", "bară",
+      "capota", "oglinda", "motor ", "cutie", "injector", "turbina", "interior", "volan", "navigatie",
+      "grila", "eleron", "folie", "inchiriez", "inchiriere", "renta", "macheta"
+    ];
+    if (containsAny(text, excluded)) return false;
+
+    const modelText = normalizeModelText(req);
+    if (modelText.includes("x5m") || modelText.includes("x5 m")) {
+      return text.includes("x5") && (text.includes("m") || text.includes("x5m"));
+    }
+    if (modelText.includes("x5")) return text.includes("x5");
+  }
+
+  if (req.category === "real_estate") {
+    const excluded = ["cazare", "inchiriere", "închiriere", "regim hotelier", "booking"];
+    if (containsAny(text, excluded)) return false;
+  }
+
+  return true;
+}
+
+function minimumRelevantPriceRon(req: PriceRequest): number {
+  const modelText = normalizeModelText(req);
+  if (req.category === "cars") {
+    if (modelText.includes("x5m") || modelText.includes("x5 m")) return 100_000;
+    if (modelText.includes("x5")) return 35_000;
+    if (containsAny(modelText, ["bmw", "mercedes", "audi", "porsche", "lexus"])) return 15_000;
+    return 5_000;
+  }
+  if (req.category === "real_estate") return 30_000;
+  return 5;
+}
+
+function premiumSpecificRange(req: PriceRequest): { min: number; max: number } | null {
+  const modelText = normalizeModelText(req);
+  if (req.category === "cars") {
+    if (modelText.includes("x5m") || modelText.includes("x5 m")) return { min: 150_000, max: 230_000 }; // ~30k-46k EUR
+    if (modelText.includes("x5") && modelText.includes("bmw")) return { min: 55_000, max: 180_000 };
+    if (modelText.includes("m5") && modelText.includes("bmw")) return { min: 100_000, max: 350_000 };
+    if (modelText.includes("rs6") || modelText.includes("rs 6")) return { min: 120_000, max: 400_000 };
+  }
+  return null;
 }
 
 function median(values: number[]): number {
@@ -191,7 +266,7 @@ async function searchMarket(req: PriceRequest): Promise<MarketListing[]> {
     const snippet = cleanText(item.snippet || item.rich_snippet?.top?.detected_extensions?.price || "");
     const source = cleanText(item.source || new URL(item.link || "https://example.com").hostname.replace("www.", ""));
     const priceText = `${title} ${snippet} ${JSON.stringify(item.rich_snippet || {})}`;
-    return { title, snippet, link: item.link, source, price: parseRonPrice(priceText) };
+    return { title, snippet, link: item.link, source, price: extractPriceRon(priceText) };
   });
 
   const shoppingListings: MarketListing[] = shopping.map((item: any) => {
@@ -199,7 +274,7 @@ async function searchMarket(req: PriceRequest): Promise<MarketListing[]> {
     const snippet = cleanText(item.price || item.extracted_price || "");
     const source = cleanText(item.source || "Google Shopping");
     const priceText = `${title} ${snippet}`;
-    return { title, snippet, link: item.link, source, price: parseRonPrice(priceText) };
+    return { title, snippet, link: item.link, source, price: extractPriceRon(priceText) };
   });
 
   return [...organicListings, ...shoppingListings].filter((item) => item.title || item.snippet);
@@ -208,7 +283,8 @@ async function searchMarket(req: PriceRequest): Promise<MarketListing[]> {
 function heuristicPrice(req: PriceRequest): PriceResponse {
   const categoryData = CATEGORY_BASE_PRICES[req.category] || CATEGORY_BASE_PRICES.other;
   const subKey = req.subcategory?.toLowerCase().replace(/ /g, "_") || "default";
-  const baseRange = categoryData[subKey] || categoryData.default;
+  const specificRange = premiumSpecificRange(req);
+  const baseRange = specificRange || categoryData[subKey] || categoryData.default;
   const conditionMult = CONDITION_MULTIPLIERS[req.condition] || 0.5;
   const attrs = req.attributes || {};
 
@@ -241,7 +317,7 @@ function heuristicPrice(req: PriceRequest): PriceResponse {
     suggested_price: suggested,
     price_min: priceMin,
     price_max: priceMax,
-    reasoning: `Estimare interna calculata din categorie, stare si caracteristici. Pentru comparatie live cu OLX/Autovit/Storia, adauga SERPAPI_KEY in Supabase Edge Function secrets.`,
+    reasoning: `Estimare interna calculata din categorie, stare si caracteristici${specificRange ? ", cu interval special pentru model premium" : ""}. Pentru comparatie live cu OLX/Autovit/Storia, adauga SERPAPI_KEY in Supabase Edge Function secrets.`,
     market_sources: ["Estimare interna", ...(SOURCE_DOMAINS[req.category] || SOURCE_DOMAINS.other)],
     confidence: Object.keys(attrs).length >= 3 ? "medium" : "low",
   };
@@ -250,34 +326,55 @@ function heuristicPrice(req: PriceRequest): PriceResponse {
 async function calculatePrice(req: PriceRequest): Promise<PriceResponse> {
   const fallback = heuristicPrice(req);
   const listings = await searchMarket(req);
-  const pricedListings = listings.filter((item) => typeof item.price === "number") as Array<MarketListing & { price: number }>;
+  const minRelevant = minimumRelevantPriceRon(req);
+
+  const relevantListings = listings.filter((item) => isRelevantListing(req, item));
+  const pricedListings = relevantListings
+    .filter((item) => typeof item.price === "number" && item.price >= minRelevant) as Array<MarketListing & { price: number }>;
+
   const cleanedPrices = removeOutliers(pricedListings.map((item) => item.price));
 
   if (cleanedPrices.length < 3) {
+    const fallbackEur = Math.round(fallback.suggested_price / 5 / 100) * 100;
     return {
       ...fallback,
-      reasoning: `${fallback.reasoning} Nu am gasit suficiente preturi publice comparabile in cautarea live (${cleanedPrices.length} rezultate cu pret detectat).`,
-      market_sources: Array.from(new Set([...fallback.market_sources, ...listings.slice(0, 5).map((item) => item.source)])),
+      reasoning: `${fallback.reasoning} Nu am gasit suficiente preturi publice comparabile dupa filtrarea rezultatelor irelevante (${cleanedPrices.length} rezultate cu pret valid). Estimarea este aproximativ ${fallbackEur.toLocaleString("ro-RO")} EUR / ${fallback.suggested_price.toLocaleString("ro-RO")} RON.`,
+      market_sources: Array.from(new Set([...fallback.market_sources, ...relevantListings.slice(0, 5).map((item) => item.source)])),
     };
   }
 
   const med = median(cleanedPrices);
-  const conditionMultiplier = CONDITION_MULTIPLIERS[req.condition] || 0.65;
-  const suggested = Math.round((med * (0.85 + conditionMultiplier * 0.25)) / 10) * 10;
-  const priceMin = Math.round((median(cleanedPrices.slice(0, Math.max(1, Math.floor(cleanedPrices.length / 2)))) * 0.9) / 10) * 10;
-  const priceMax = Math.round((median(cleanedPrices.slice(Math.floor(cleanedPrices.length / 2))) * 1.1) / 10) * 10;
+
+  // Guardrail: if live results are implausibly lower than the internal model,
+  // keep the internal model. This avoids parts/accessories being priced as cars.
+  if ((req.category === "cars" || req.category === "real_estate") && med < fallback.suggested_price * 0.55) {
+    const fallbackEur = Math.round(fallback.suggested_price / 5 / 100) * 100;
+    return {
+      ...fallback,
+      reasoning: `Am gasit preturi live, dar mediana (${Math.round(med).toLocaleString("ro-RO")} RON) este prea mica fata de modelul estimat, deci probabil include piese, accesorii sau anunturi nerelevante. Recomandarea foloseste filtrare premium si interval logic pentru produs: aproximativ ${fallbackEur.toLocaleString("ro-RO")} EUR / ${fallback.suggested_price.toLocaleString("ro-RO")} RON.`,
+      market_sources: Array.from(new Set([...pricedListings.slice(0, 6).map((item) => item.source), "Filtru anti-outliers"])),
+      confidence: "medium",
+    };
+  }
+
+  const sorted = [...cleanedPrices].sort((a, b) => a - b);
+  const suggested = Math.round(med / 100) * 100;
+  const lowHalf = sorted.slice(0, Math.max(1, Math.floor(sorted.length / 2)));
+  const highHalf = sorted.slice(Math.floor(sorted.length / 2));
+  const priceMin = Math.round((median(lowHalf) * 0.95) / 100) * 100;
+  const priceMax = Math.round((median(highHalf) * 1.05) / 100) * 100;
 
   const sources = Array.from(new Set(pricedListings.slice(0, 8).map((item) => item.source)));
   const examples = pricedListings
     .slice(0, 4)
-    .map((item) => `${item.source}: ${item.price.toLocaleString("ro-RO")} RON`)
+    .map((item) => `${item.source}: ${item.price.toLocaleString("ro-RO")} RON (~${Math.round(item.price / 5).toLocaleString("ro-RO")} EUR)`)
     .join("; ");
 
   return {
     suggested_price: suggested,
     price_min: Math.min(priceMin, suggested),
     price_max: Math.max(priceMax, suggested),
-    reasoning: `Pret calculat din cautare live pe piata second-hand. Am comparat anunturi similare pentru „${req.title}” si am extras ${cleanedPrices.length} preturi relevante. Exemple: ${examples}. Recomandarea tine cont si de starea produsului.`,
+    reasoning: `Pret calculat din cautare live pe piata second-hand. Am filtrat rezultatele irelevante si am pastrat ${cleanedPrices.length} preturi comparabile pentru „${req.title}”. Exemple: ${examples}. Recomandarea este aproximativ ${Math.round(suggested / 5).toLocaleString("ro-RO")} EUR / ${suggested.toLocaleString("ro-RO")} RON.`,
     market_sources: sources.length ? sources : ["OLX.ro", "AutoVit.ro", "Storia.ro"],
     confidence: cleanedPrices.length >= 6 ? "high" : "medium",
   };
