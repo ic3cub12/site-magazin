@@ -62,12 +62,20 @@ export default function CreateListingPage({ onNavigate }: CreateListingPageProps
   }
 
   function addImageUrl() {
-   async function uploadImage(file: File) {
-  const fileExt = file.name.split('.').pop();
-  const fileName = `${Date.now()}.${fileExt}`;
+  const url = imageUrl.trim();
+
+  if (url && images.length < 10) {
+    setImages(prev => [...prev, url]);
+    setImageUrl("");
+  }
+}
+
+async function uploadImage(file: File) {
+  const fileExt = file.name.split(".").pop();
+  const fileName = `${user?.id}/${Date.now()}.${fileExt}`;
 
   const { error } = await supabase.storage
-    .from('listing-images')
+    .from("listing-images")
     .upload(fileName, file);
 
   if (error) {
@@ -76,15 +84,26 @@ export default function CreateListingPage({ onNavigate }: CreateListingPageProps
   }
 
   const { data } = supabase.storage
-    .from('listing-images')
+    .from("listing-images")
     .getPublicUrl(fileName);
 
   setImages(prev => [...prev, data.publicUrl]);
 }
 
-    const finalPrice = useAIPrice ? null : (askingPrice ? parseFloat(askingPrice) : null);
+async function handleSubmit(e: FormEvent) {
+  e.preventDefault();
 
-    const { data, error } = await supabase.from("listings").insert({
+  if (!user) return;
+
+  setSubmitting(true);
+
+  const finalPrice = useAIPrice
+    ? null
+    : (askingPrice ? parseFloat(askingPrice) : null);
+
+  const { data, error } = await supabase
+    .from("listings")
+    .insert({
       user_id: user.id,
       title,
       description,
@@ -100,25 +119,35 @@ export default function CreateListingPage({ onNavigate }: CreateListingPageProps
       images,
       location,
       status: "active",
-    }).select().single();
+    })
+    .select()
+    .single();
 
-    if (error) {
-      setSubmitting(false);
-      return;
-    }
-
-    // Insert attributes
-    if (Object.keys(attributes).length > 0) {
-      const attrRows = Object.entries(attributes)
-        .filter(([, v]) => v.trim())
-        .map(([key, value]) => ({ listing_id: data.id, key, value }));
-      if (attrRows.length > 0) {
-        await supabase.from("listing_attributes").insert(attrRows);
-      }
-    }
-
-    onNavigate("listing", { id: data.id });
+  if (error) {
+    console.error(error);
+    setSubmitting(false);
+    return;
   }
+
+  // Insert attributes
+  if (Object.keys(attributes).length > 0) {
+    const attrRows = Object.entries(attributes)
+      .filter(([, v]) => v.trim())
+      .map(([key, value]) => ({
+        listing_id: data.id,
+        key,
+        value,
+      }));
+
+    if (attrRows.length > 0) {
+      await supabase
+        .from("listing_attributes")
+        .insert(attrRows);
+    }
+  }
+
+  onNavigate("listing", { id: data.id });
+}
 
   const isStep1Valid = title.length >= 5 && category && subcategory;
   const isStep2Valid = condition;
