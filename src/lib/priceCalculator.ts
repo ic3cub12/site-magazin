@@ -43,6 +43,14 @@ export async function calculateAIPrice(req: PriceRequest): Promise<PriceResult> 
   return response.json();
 }
 
-export function formatPrice(price: number): string {
-  return price.toLocaleString("ro-RO") + " RON";
+export function formatPrice(price?: number | null): string {
+  if (typeof price !== "number" || Number.isNaN(price)) {
+    return "Pret indisponibil";
+  }
+
+  return price.toLocaleString("ro-RO", {
+    style: "currency",
+    currency: "RON",
+    maximumFractionDigits: 0,
+  });
 }
