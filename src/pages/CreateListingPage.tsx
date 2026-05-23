@@ -1,4 +1,4 @@
-import { useState, useRef, FormEvent } from "react";
+import { useState, FormEvent } from "react";
 import {
   ArrowLeft, Sparkles, Upload, X, Plus, Loader2,
   TrendingUp, Info, CheckCircle, ChevronDown, ChevronUp
@@ -33,6 +33,8 @@ export default function CreateListingPage({ onNavigate }: CreateListingPageProps
   const [submitting, setSubmitting] = useState(false);
   const [imageUrl, setImageUrl] = useState("");
   const [showSourcesExpanded, setShowSourcesExpanded] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [imageError, setImageError] = useState("");
 
   const catConfig = getCategoryConfig(category);
 
@@ -62,48 +64,56 @@ export default function CreateListingPage({ onNavigate }: CreateListingPageProps
   }
 
   function addImageUrl() {
-  const url = imageUrl.trim();
-
-  if (url && images.length < 10) {
-    setImages(prev => [...prev, url]);
-    setImageUrl("");
-  }
-}
-
-async function uploadImage(file: File) {
-  const fileExt = file.name.split(".").pop();
-  const fileName = `${user?.id}/${Date.now()}.${fileExt}`;
-
-  const { error } = await supabase.storage
-    .from("listing-images")
-    .upload(fileName, file);
-
-  if (error) {
-    console.error(error);
-    return;
+    const url = imageUrl.trim();
+    if (url && images.length < 10) {
+      setImages(prev => [...prev, url]);
+      setImageUrl("");
+    }
   }
 
-  const { data } = supabase.storage
-    .from("listing-images")
-    .getPublicUrl(fileName);
+  async function uploadImage(file: File) {
+    if (!user || images.length >= 10) return;
 
-  setImages(prev => [...prev, data.publicUrl]);
-}
+    setUploadingImage(true);
+    setImageError("");
 
-async function handleSubmit(e: FormEvent) {
-  e.preventDefault();
+    try {
+      const fileExt = file.name.split(".").pop()?.toLowerCase() || "jpg";
+      const fileName = `${user.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${fileExt}`;
 
-  if (!user) return;
+      const { error } = await supabase.storage
+        .from("listing-images")
+        .upload(fileName, file, {
+          cacheControl: "3600",
+          upsert: false,
+        });
 
-  setSubmitting(true);
+      if (error) {
+        setImageError(error.message);
+        return;
+      }
 
-  const finalPrice = useAIPrice
-    ? null
-    : (askingPrice ? parseFloat(askingPrice) : null);
+      const { data } = supabase.storage
+        .from("listing-images")
+        .getPublicUrl(fileName);
 
-  const { data, error } = await supabase
-    .from("listings")
-    .insert({
+      setImages(prev => [...prev, data.publicUrl]);
+    } catch (err) {
+      setImageError(err instanceof Error ? err.message : "Eroare la incarcarea imaginii");
+    } finally {
+      setUploadingImage(false);
+    }
+  }
+
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    if (!user) return;
+
+    setSubmitting(true);
+
+    const finalPrice = useAIPrice ? null : (askingPrice ? parseFloat(askingPrice) : null);
+
+    const { data, error } = await supabase.from("listings").insert({
       user_id: user.id,
       title,
       description,
@@ -119,35 +129,25 @@ async function handleSubmit(e: FormEvent) {
       images,
       location,
       status: "active",
-    })
-    .select()
-    .single();
+    }).select().single();
 
-  if (error) {
-    console.error(error);
-    setSubmitting(false);
-    return;
-  }
-
-  // Insert attributes
-  if (Object.keys(attributes).length > 0) {
-    const attrRows = Object.entries(attributes)
-      .filter(([, v]) => v.trim())
-      .map(([key, value]) => ({
-        listing_id: data.id,
-        key,
-        value,
-      }));
-
-    if (attrRows.length > 0) {
-      await supabase
-        .from("listing_attributes")
-        .insert(attrRows);
+    if (error) {
+      setSubmitting(false);
+      return;
     }
-  }
 
-  onNavigate("listing", { id: data.id });
-}
+    // Insert attributes
+    if (Object.keys(attributes).length > 0) {
+      const attrRows = Object.entries(attributes)
+        .filter(([, v]) => v.trim())
+        .map(([key, value]) => ({ listing_id: data.id, key, value }));
+      if (attrRows.length > 0) {
+        await supabase.from("listing_attributes").insert(attrRows);
+      }
+    }
+
+    onNavigate("listing", { id: data.id });
+  }
 
   const isStep1Valid = title.length >= 5 && category && subcategory;
   const isStep2Valid = condition;
@@ -354,26 +354,53 @@ async function handleSubmit(e: FormEvent) {
             <div className="space-y-6">
               <div className="bg-white rounded-2xl p-6 border border-slate-200 space-y-5">
                 <h2 className="font-bold text-slate-900 text-lg">Fotografii</h2>
-                <p className="text-sm text-slate-500">Incarca fotografii ale produsului (max 10 imagini).</p>
+                <p className="text-sm text-slate-500">Incarca fotografii ale produsului din calculator sau adauga un link public (max 10 imagini).</p>
 
-                <div className="flex gap-2">
-                  <input
-  type="file"
-  accept="image/*"
-  onChange={(e) => {
-    const file = e.target.files?.[0];
-    if (file) uploadImage(file);
-  }}
-  className="flex-1 px-4 py-3 border border-slate-200 rounded-xl text-sm bg-white"
-/>
-                  <button
-                    type="button"
-                    onClick={addImageUrl}
-                    disabled={!imageUrl.trim() || images.length >= 10}
-                    className="px-4 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-40 flex items-center gap-1"
-                  >
-                    <Plus className="w-4 h-4" />
-                  </button>
+                <div className="space-y-3">
+                  <label className={`flex items-center justify-center gap-2 px-4 py-4 border-2 border-dashed rounded-xl text-sm font-semibold transition-colors ${
+                    uploadingImage || images.length >= 10
+                      ? "border-slate-200 bg-slate-50 text-slate-400 cursor-not-allowed"
+                      : "border-blue-200 bg-blue-50 text-blue-700 cursor-pointer hover:bg-blue-100"
+                  }`}>
+                    {uploadingImage ? <Loader2 className="w-5 h-5 animate-spin" /> : <Upload className="w-5 h-5" />}
+                    {uploadingImage ? "Se incarca imaginea..." : "Alege imagine din calculator"}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      disabled={uploadingImage || images.length >= 10}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) uploadImage(file);
+                        e.currentTarget.value = "";
+                      }}
+                      className="hidden"
+                    />
+                  </label>
+
+                  {imageError && (
+                    <div className="bg-red-50 border border-red-200 text-red-700 text-xs px-3 py-2 rounded-xl">
+                      {imageError}
+                    </div>
+                  )}
+
+                  <div className="flex gap-2">
+                    <input
+                      type="url"
+                      value={imageUrl}
+                      onChange={e => setImageUrl(e.target.value)}
+                      onKeyDown={e => e.key === "Enter" && (e.preventDefault(), addImageUrl())}
+                      placeholder="Sau lipeste un link public catre imagine"
+                      className="flex-1 px-4 py-3 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={addImageUrl}
+                      disabled={!imageUrl.trim() || images.length >= 10}
+                      className="px-4 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-40 flex items-center gap-1"
+                    >
+                      <Plus className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
 
                 {images.length > 0 && (
