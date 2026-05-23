@@ -354,7 +354,7 @@ async function handleSubmit(e: FormEvent) {
             <div className="space-y-6">
               <div className="bg-white rounded-2xl p-6 border border-slate-200 space-y-5">
                 <h2 className="font-bold text-slate-900 text-lg">Fotografii</h2>
-                <p className="text-sm text-slate-500">Adauga link-uri catre fotografii ale produsului (max 10 imagini).</p>
+                <p className="text-sm text-slate-500">Incarca fotografii ale produsului (max 10 imagini).</p>
 
                 <div className="flex gap-2">
                   <input
@@ -364,6 +364,7 @@ async function handleSubmit(e: FormEvent) {
     const file = e.target.files?.[0];
     if (file) uploadImage(file);
   }}
+  className="flex-1 px-4 py-3 border border-slate-200 rounded-xl text-sm bg-white"
 />
                   <button
                     type="button"
