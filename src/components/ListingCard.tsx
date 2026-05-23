@@ -31,7 +31,7 @@ export default function ListingCard({ listing, onView, isFavorite, onToggleFavor
   return (
     <div
       onClick={() => onView(listing.id)}
-      className="group bg-white rounded-2xl border border-slate-200 overflow-hidden cursor-pointer hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200"
+      className="group bg-white/90 rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden cursor-pointer hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200"
     >
       {/* Image */}
       <div className="relative aspect-[4/3] bg-slate-100 overflow-hidden">
@@ -70,7 +70,7 @@ export default function ListingCard({ listing, onView, isFavorite, onToggleFavor
             listing.condition === "like_new" ? "bg-teal-500 text-white" :
             listing.condition === "good" ? "bg-blue-500 text-white" :
             listing.condition === "fair" ? "bg-amber-500 text-white" :
-            "bg-slate-500 text-white"
+            "bg-[#eef2f7]0 text-white"
           }`}>
             {listing.condition === "new" ? "Nou" :
              listing.condition === "like_new" ? "Ca nou" :

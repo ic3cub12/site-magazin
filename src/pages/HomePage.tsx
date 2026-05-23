@@ -70,21 +70,20 @@ export default function HomePage({ onNavigate, searchQuery }: HomePageProps) {
     : listings;
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-[#eef2f7]">
       {/* Hero */}
       <section className="bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 text-white pt-24 pb-16 px-4">
         <div className="max-w-4xl mx-auto text-center">
           <div className="inline-flex items-center gap-2 bg-blue-500/20 border border-blue-400/30 text-blue-300 text-sm px-4 py-2 rounded-full mb-6">
             <Sparkles className="w-4 h-4" />
-            Primul marketplace cu pret calculat de AI
+            Smart global marketplace with AI pricing
           </div>
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold mb-6 leading-tight">
-            Vinde si cumpara
-            <span className="block text-blue-400">la pretul corect</span>
+            Buy and sell smarter
+            <span className="block text-cyan-300">with AI-powered pricing</span>
           </h1>
           <p className="text-slate-300 text-lg max-w-2xl mx-auto mb-8">
-            Posteaza orice produs — masini, case, electronice sau electrocasnice —
-            si primesti instant pretul calculat de AI pe baza pietei din Romania.
+            List cars, real estate, electronics or home goods and get an instant AI-assisted price estimate based on global market signals.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <button
@@ -92,14 +91,14 @@ export default function HomePage({ onNavigate, searchQuery }: HomePageProps) {
               className="w-full sm:w-auto bg-blue-600 hover:bg-blue-500 text-white font-semibold px-8 py-4 rounded-2xl transition-colors flex items-center justify-center gap-2"
             >
               <Sparkles className="w-5 h-5" />
-              Posteaza un anunt gratuit
+              Create a free listing
               <ArrowRight className="w-4 h-4" />
             </button>
             <button
               onClick={() => onNavigate("browse")}
               className="w-full sm:w-auto bg-white/10 hover:bg-white/20 text-white font-semibold px-8 py-4 rounded-2xl transition-colors border border-white/20"
             >
-              Cauta produse
+              Browse listings
             </button>
           </div>
         </div>
@@ -114,7 +113,7 @@ export default function HomePage({ onNavigate, searchQuery }: HomePageProps) {
               color: "text-blue-600",
               bg: "bg-blue-50",
               title: "Pret calculat de AI",
-              desc: "Algoritmul nostru analizeaza preturile de pe OLX, Storia, AutoVit si sute de alte platforme pentru a-ti oferi pretul corect.",
+              desc: "Algoritmul nostru analizeaza preturile de pe marketplaces globale si sute de alte platforme pentru a-ti oferi pretul corect.",
             },
             {
               icon: TrendingUp,
@@ -131,7 +130,7 @@ export default function HomePage({ onNavigate, searchQuery }: HomePageProps) {
               desc: "Profil verificat, istoricul vanzatorului si sistem de mesagerie integrat pentru o experienta de incredere.",
             },
           ].map(f => (
-            <div key={f.title} className="bg-white rounded-2xl p-6 border border-slate-200">
+            <div key={f.title} className="bg-white/90 rounded-2xl p-6 border border-slate-200/80 shadow-sm">
               <div className={`w-12 h-12 ${f.bg} rounded-xl flex items-center justify-center mb-4`}>
                 <f.icon className={`w-6 h-6 ${f.color}`} />
               </div>
@@ -198,7 +197,7 @@ export default function HomePage({ onNavigate, searchQuery }: HomePageProps) {
         {loading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} className="bg-white rounded-2xl border border-slate-200 overflow-hidden animate-pulse">
+              <div key={i} className="bg-white/90 rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden animate-pulse">
                 <div className="aspect-[4/3] bg-slate-200" />
                 <div className="p-4 space-y-2">
                   <div className="h-4 bg-slate-200 rounded w-3/4" />

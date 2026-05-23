@@ -47,7 +47,7 @@ export default function MyListingsPage({ onNavigate }: MyListingsPageProps) {
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-slate-50 pt-20 flex items-center justify-center">
+      <div className="min-h-screen bg-[#eef2f7] pt-20 flex items-center justify-center">
         <div className="text-center">
           <AlertCircle className="w-12 h-12 text-slate-300 mx-auto mb-4" />
           <p className="text-slate-500 mb-4">Trebuie sa fii autentificat</p>
@@ -60,7 +60,7 @@ export default function MyListingsPage({ onNavigate }: MyListingsPageProps) {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 pt-20 pb-16">
+    <div className="min-h-screen bg-[#eef2f7] pt-20 pb-16">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex items-center justify-between mb-8">
           <div>
@@ -79,7 +79,7 @@ export default function MyListingsPage({ onNavigate }: MyListingsPageProps) {
         {loading ? (
           <div className="space-y-4">
             {[1, 2, 3].map(i => (
-              <div key={i} className="bg-white rounded-2xl border border-slate-200 p-4 animate-pulse flex gap-4">
+              <div key={i} className="bg-white/90 rounded-2xl border border-slate-200/80 shadow-sm p-4 animate-pulse flex gap-4">
                 <div className="w-24 h-24 bg-slate-200 rounded-xl flex-shrink-0" />
                 <div className="flex-1 space-y-2">
                   <div className="h-4 bg-slate-200 rounded w-2/3" />
@@ -90,7 +90,7 @@ export default function MyListingsPage({ onNavigate }: MyListingsPageProps) {
             ))}
           </div>
         ) : listings.length === 0 ? (
-          <div className="text-center py-20 bg-white rounded-2xl border border-slate-200">
+          <div className="text-center py-20 bg-white/90 rounded-2xl border border-slate-200/80 shadow-sm">
             <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <Plus className="w-8 h-8 text-slate-300" />
             </div>
@@ -111,7 +111,7 @@ export default function MyListingsPage({ onNavigate }: MyListingsPageProps) {
               const image = listing.images?.[0];
 
               return (
-                <div key={listing.id} className="bg-white rounded-2xl border border-slate-200 p-4 flex gap-4 hover:shadow-md transition-shadow">
+                <div key={listing.id} className="bg-white/90 rounded-2xl border border-slate-200/80 shadow-sm p-4 flex gap-4 hover:shadow-md transition-shadow">
                   {/* Thumbnail */}
                   <div className="w-24 h-24 rounded-xl overflow-hidden bg-slate-100 flex-shrink-0">
                     {image ? (

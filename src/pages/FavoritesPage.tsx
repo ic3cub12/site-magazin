@@ -39,7 +39,7 @@ export default function FavoritesPage({ onNavigate }: FavoritesPageProps) {
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-slate-50 pt-20 flex items-center justify-center">
+      <div className="min-h-screen bg-[#eef2f7] pt-20 flex items-center justify-center">
         <div className="text-center">
           <AlertCircle className="w-12 h-12 text-slate-300 mx-auto mb-4" />
           <p className="text-slate-500 mb-4">Trebuie sa fii autentificat</p>
@@ -52,7 +52,7 @@ export default function FavoritesPage({ onNavigate }: FavoritesPageProps) {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 pt-20 pb-16">
+    <div className="min-h-screen bg-[#eef2f7] pt-20 pb-16">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex items-center gap-3 mb-8">
           <div className="w-10 h-10 bg-red-100 rounded-xl flex items-center justify-center">
@@ -67,7 +67,7 @@ export default function FavoritesPage({ onNavigate }: FavoritesPageProps) {
         {loading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {[1, 2, 3, 4].map(i => (
-              <div key={i} className="bg-white rounded-2xl border border-slate-200 overflow-hidden animate-pulse">
+              <div key={i} className="bg-white/90 rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden animate-pulse">
                 <div className="aspect-[4/3] bg-slate-200" />
                 <div className="p-4 space-y-2">
                   <div className="h-4 bg-slate-200 rounded w-3/4" />
@@ -77,7 +77,7 @@ export default function FavoritesPage({ onNavigate }: FavoritesPageProps) {
             ))}
           </div>
         ) : listings.length === 0 ? (
-          <div className="text-center py-20 bg-white rounded-2xl border border-slate-200">
+          <div className="text-center py-20 bg-white/90 rounded-2xl border border-slate-200/80 shadow-sm">
             <Heart className="w-12 h-12 text-slate-200 mx-auto mb-4" />
             <p className="text-slate-500 text-lg mb-2">Niciun anunt salvat</p>
             <p className="text-slate-400 text-sm mb-6">Apasa pe inima pentru a salva anunturi</p>

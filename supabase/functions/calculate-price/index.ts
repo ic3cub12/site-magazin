@@ -181,7 +181,7 @@ function calculatePrice(req: PriceRequest): PriceResponse {
   };
   const conditionLabel = conditionLabels[req.condition] || req.condition;
 
-  let reasoning = `Pretul a fost calculat pe baza datelor de piata din Romania pentru categoria ${req.category}`;
+  let reasoning = `Pretul a fost calculat pe baza datelor de international marketplace pentru categoria ${req.category}`;
   if (req.subcategory) reasoning += ` (${req.subcategory})`;
   reasoning += `. Produsul este in stare ${conditionLabel}`;
 
@@ -198,7 +198,7 @@ function calculatePrice(req: PriceRequest): PriceResponse {
     reasoning += `, suprafata ${attrs["suprafata"]} mp`;
   }
 
-  reasoning += `. Media preturilor similare de pe OLX, Storia, AutoVit, Autovehicule.ro, Anuntul.ro si alte platforme indica un pret de piata intre ${priceMin.toLocaleString("ro-RO")} RON si ${priceMax.toLocaleString("ro-RO")} RON.`;
+  reasoning += `. Media preturilor similare de pe marketplaces globale, Autovehicule.ro, Anuntul.ro si alte platforme indica un pret de piata intre ${priceMin.toLocaleString("ro-RO")} RON si ${priceMax.toLocaleString("ro-RO")} RON.`;
 
   const confidence: "high" | "medium" | "low" =
     Object.keys(attrs).length >= 3 ? "high" : Object.keys(attrs).length >= 1 ? "medium" : "low";

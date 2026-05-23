@@ -154,7 +154,7 @@ export default function CreateListingPage({ onNavigate }: CreateListingPageProps
   const isStep3Valid = true;
 
   return (
-    <div className="min-h-screen bg-slate-50 pt-20 pb-16">
+    <div className="min-h-screen bg-[#eef2f7] pt-20 pb-16">
       <div className="max-w-2xl mx-auto px-4">
         {/* Header */}
         <div className="flex items-center gap-4 mb-8">
@@ -183,7 +183,7 @@ export default function CreateListingPage({ onNavigate }: CreateListingPageProps
           {/* Step 1: Basic info */}
           {step === 1 && (
             <div className="space-y-6">
-              <div className="bg-white rounded-2xl p-6 border border-slate-200 space-y-5">
+              <div className="bg-white/90 rounded-2xl p-6 border border-slate-200/80 shadow-sm space-y-5">
                 <h2 className="font-bold text-slate-900 text-lg">Informatii de baza</h2>
 
                 <div>
@@ -272,7 +272,7 @@ export default function CreateListingPage({ onNavigate }: CreateListingPageProps
           {/* Step 2: Condition & Attributes */}
           {step === 2 && (
             <div className="space-y-6">
-              <div className="bg-white rounded-2xl p-6 border border-slate-200 space-y-5">
+              <div className="bg-white/90 rounded-2xl p-6 border border-slate-200/80 shadow-sm space-y-5">
                 <h2 className="font-bold text-slate-900 text-lg">Stare si caracteristici</h2>
 
                 <div>
@@ -339,7 +339,7 @@ export default function CreateListingPage({ onNavigate }: CreateListingPageProps
               </div>
 
               <div className="flex gap-3">
-                <button type="button" onClick={() => setStep(1)} className="flex-1 bg-white border border-slate-200 text-slate-700 font-semibold py-4 rounded-2xl hover:bg-slate-50 transition-colors">
+                <button type="button" onClick={() => setStep(1)} className="flex-1 bg-white border border-slate-200 text-slate-700 font-semibold py-4 rounded-2xl hover:bg-[#eef2f7] transition-colors">
                   Inapoi
                 </button>
                 <button type="button" onClick={() => setStep(3)} disabled={!isStep2Valid} className="flex-1 bg-blue-600 text-white font-semibold py-4 rounded-2xl hover:bg-blue-700 transition-colors disabled:opacity-40">
@@ -352,14 +352,14 @@ export default function CreateListingPage({ onNavigate }: CreateListingPageProps
           {/* Step 3: Photos */}
           {step === 3 && (
             <div className="space-y-6">
-              <div className="bg-white rounded-2xl p-6 border border-slate-200 space-y-5">
+              <div className="bg-white/90 rounded-2xl p-6 border border-slate-200/80 shadow-sm space-y-5">
                 <h2 className="font-bold text-slate-900 text-lg">Fotografii</h2>
                 <p className="text-sm text-slate-500">Incarca fotografii ale produsului din calculator sau adauga un link public (max 10 imagini).</p>
 
                 <div className="space-y-3">
                   <label className={`flex items-center justify-center gap-2 px-4 py-4 border-2 border-dashed rounded-xl text-sm font-semibold transition-colors ${
                     uploadingImage || images.length >= 10
-                      ? "border-slate-200 bg-slate-50 text-slate-400 cursor-not-allowed"
+                      ? "border-slate-200 bg-[#eef2f7] text-slate-400 cursor-not-allowed"
                       : "border-blue-200 bg-blue-50 text-blue-700 cursor-pointer hover:bg-blue-100"
                   }`}>
                     {uploadingImage ? <Loader2 className="w-5 h-5 animate-spin" /> : <Upload className="w-5 h-5" />}
@@ -439,7 +439,7 @@ export default function CreateListingPage({ onNavigate }: CreateListingPageProps
               </div>
 
               <div className="flex gap-3">
-                <button type="button" onClick={() => setStep(2)} className="flex-1 bg-white border border-slate-200 text-slate-700 font-semibold py-4 rounded-2xl hover:bg-slate-50 transition-colors">
+                <button type="button" onClick={() => setStep(2)} className="flex-1 bg-white border border-slate-200 text-slate-700 font-semibold py-4 rounded-2xl hover:bg-[#eef2f7] transition-colors">
                   Inapoi
                 </button>
                 <button type="button" onClick={() => setStep(4)} className="flex-1 bg-blue-600 text-white font-semibold py-4 rounded-2xl hover:bg-blue-700 transition-colors">
@@ -452,7 +452,7 @@ export default function CreateListingPage({ onNavigate }: CreateListingPageProps
           {/* Step 4: Price */}
           {step === 4 && (
             <div className="space-y-6">
-              <div className="bg-white rounded-2xl p-6 border border-slate-200 space-y-5">
+              <div className="bg-white/90 rounded-2xl p-6 border border-slate-200/80 shadow-sm space-y-5">
                 <h2 className="font-bold text-slate-900 text-lg">Stabileste pretul</h2>
 
                 {/* AI Price calculator */}
@@ -618,7 +618,7 @@ export default function CreateListingPage({ onNavigate }: CreateListingPageProps
               </div>
 
               {/* Summary */}
-              <div className="bg-white rounded-2xl p-6 border border-slate-200">
+              <div className="bg-white/90 rounded-2xl p-6 border border-slate-200/80 shadow-sm">
                 <h3 className="font-bold text-slate-900 mb-4">Sumar anunt</h3>
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
@@ -649,7 +649,7 @@ export default function CreateListingPage({ onNavigate }: CreateListingPageProps
               </div>
 
               <div className="flex gap-3">
-                <button type="button" onClick={() => setStep(3)} className="flex-1 bg-white border border-slate-200 text-slate-700 font-semibold py-4 rounded-2xl hover:bg-slate-50 transition-colors">
+                <button type="button" onClick={() => setStep(3)} className="flex-1 bg-white border border-slate-200 text-slate-700 font-semibold py-4 rounded-2xl hover:bg-[#eef2f7] transition-colors">
                   Inapoi
                 </button>
                 <button

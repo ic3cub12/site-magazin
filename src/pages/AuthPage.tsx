@@ -50,13 +50,13 @@ export default function AuthPage({ mode, onNavigate }: AuthPageProps) {
           Inapoi la pagina principala
         </button>
 
-        <div className="bg-white rounded-3xl shadow-2xl p-8">
+        <div className="bg-white/95 rounded-3xl shadow-2xl p-8">
           {/* Logo */}
           <div className="flex items-center justify-center gap-3 mb-8">
-            <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center">
+            <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-cyan-400 rounded-xl flex items-center justify-center">
               <ShoppingBag className="w-5 h-5 text-white" />
             </div>
-            <span className="font-bold text-slate-900 text-xl">PiataRO</span>
+            <span className="font-bold text-slate-900 text-xl">TradeNest</span>
           </div>
 
           <h1 className="text-2xl font-bold text-slate-900 text-center mb-2">

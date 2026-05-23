@@ -108,7 +108,7 @@ export default function ListingDetailPage({ listingId, onNavigate }: ListingDeta
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 pt-20">
+      <div className="min-h-screen bg-[#eef2f7] pt-20">
         <div className="max-w-5xl mx-auto px-4 py-8">
           <div className="animate-pulse space-y-6">
             <div className="h-8 bg-slate-200 rounded w-1/3" />
@@ -128,7 +128,7 @@ export default function ListingDetailPage({ listingId, onNavigate }: ListingDeta
 
   if (!listing) {
     return (
-      <div className="min-h-screen bg-slate-50 pt-20 flex items-center justify-center">
+      <div className="min-h-screen bg-[#eef2f7] pt-20 flex items-center justify-center">
         <div className="text-center">
           <p className="text-slate-500 text-lg mb-4">Anuntul nu a fost gasit.</p>
           <button onClick={() => onNavigate("home")} className="bg-blue-600 text-white px-6 py-3 rounded-xl font-semibold">
@@ -157,7 +157,7 @@ export default function ListingDetailPage({ listingId, onNavigate }: ListingDeta
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 pt-20 pb-16">
+    <div className="min-h-screen bg-[#eef2f7] pt-20 pb-16">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {/* Back */}
         <button
@@ -172,7 +172,7 @@ export default function ListingDetailPage({ listingId, onNavigate }: ListingDeta
           {/* Left: Images + Details */}
           <div className="lg:col-span-2 space-y-6">
             {/* Images */}
-            <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+            <div className="bg-white/90 rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
               {images.length > 0 ? (
                 <div className="relative">
                   <div className="aspect-[4/3] overflow-hidden bg-slate-100">
@@ -230,7 +230,7 @@ export default function ListingDetailPage({ listingId, onNavigate }: ListingDeta
             </div>
 
             {/* Title & Meta */}
-            <div className="bg-white rounded-2xl border border-slate-200 p-6">
+            <div className="bg-white/90 rounded-2xl border border-slate-200/80 shadow-sm p-6">
               <div className="flex items-start justify-between gap-4 mb-4">
                 <h1 className="text-2xl font-bold text-slate-900 leading-tight">{listing.title}</h1>
                 <div className="flex items-center gap-2 flex-shrink-0">
@@ -293,11 +293,11 @@ export default function ListingDetailPage({ listingId, onNavigate }: ListingDeta
 
             {/* Attributes */}
             {attributes.length > 0 && (
-              <div className="bg-white rounded-2xl border border-slate-200 p-6">
+              <div className="bg-white/90 rounded-2xl border border-slate-200/80 shadow-sm p-6">
                 <h3 className="font-semibold text-slate-900 mb-4">Caracteristici</h3>
                 <div className="grid grid-cols-2 gap-3">
                   {attributes.map(attr => (
-                    <div key={attr.key} className="bg-slate-50 rounded-xl p-3">
+                    <div key={attr.key} className="bg-[#eef2f7] rounded-xl p-3">
                       <p className="text-xs text-slate-400 mb-0.5">{attrLabels[attr.key] || attr.key}</p>
                       <p className="text-sm font-semibold text-slate-900">{attr.value}</p>
                     </div>
@@ -361,7 +361,7 @@ export default function ListingDetailPage({ listingId, onNavigate }: ListingDeta
           {/* Right: Price + Contact */}
           <div className="space-y-4">
             {/* Price card */}
-            <div className="bg-white rounded-2xl border border-slate-200 p-6 sticky top-20">
+            <div className="bg-white/90 rounded-2xl border border-slate-200/80 shadow-sm p-6 sticky top-20">
               <div className="mb-5">
                 {displayPrice ? (
                   <div>
