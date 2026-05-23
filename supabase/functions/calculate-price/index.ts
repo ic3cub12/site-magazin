@@ -107,9 +107,17 @@ function cleanText(value = "") {
 
 function buildSearchQuery(req: PriceRequest): string {
   const attrs = req.attributes || {};
+  let title = req.title;
+
+  // For cars, the exact model matters much more than the generic category.
+  // Normalize common premium model notation before searching.
+  if (req.category === "cars" && isBmwX5M(req)) {
+    title = "BMW X5 M F85";
+  }
+
   const queryParts = [
-    req.title,
-    req.subcategory,
+    title,
+    req.category === "cars" ? "" : req.subcategory,
     attrs.marca || attrs.brand,
     attrs.model,
     attrs.an_fabricatie || attrs.an,
@@ -117,11 +125,13 @@ function buildSearchQuery(req: PriceRequest): string {
     attrs.suprafata ? `${attrs.suprafata} mp` : "",
   ].filter(Boolean);
 
-  const marketIntent = req.category === "cars"
-    ? "autoturism vanzare second hand pret EUR"
-    : req.category === "real_estate"
-      ? "vanzare pret EUR"
-      : "second hand pret";
+  if (req.category === "cars") {
+    return `${queryParts.join(" ")} vanzare pret EUR site:autovit.ro OR site:mobile.de OR site:autoscout24.com`;
+  }
+
+  const marketIntent = req.category === "real_estate"
+    ? "vanzare pret EUR"
+    : "second hand pret";
 
   const domains = SOURCE_DOMAINS[req.category] || SOURCE_DOMAINS.other;
   return `${queryParts.join(" ")} ${marketIntent} (${domains.map((d) => `site:${d}`).join(" OR ")})`;
@@ -178,6 +188,22 @@ function normalizeModelText(req: PriceRequest) {
   ].filter(Boolean).join(" ")).toLowerCase();
 }
 
+function compactText(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+function isBmwX5M(req: PriceRequest) {
+  const text = normalizeModelText(req);
+  const compact = compactText(text);
+  return compact.includes("bmwx5m") || compact.includes("x5m") || text.includes("x5 m") || text.includes("x5-m");
+}
+
+function isBmwX5(req: PriceRequest) {
+  const text = normalizeModelText(req);
+  const compact = compactText(text);
+  return compact.includes("bmwx5") || text.includes("x5");
+}
+
 function isRelevantListing(req: PriceRequest, item: MarketListing): boolean {
   const text = `${item.title} ${item.snippet} ${item.link}`.toLowerCase();
 
@@ -189,11 +215,11 @@ function isRelevantListing(req: PriceRequest, item: MarketListing): boolean {
     ];
     if (containsAny(text, excluded)) return false;
 
-    const modelText = normalizeModelText(req);
-    if (modelText.includes("x5m") || modelText.includes("x5 m")) {
-      return text.includes("x5") && (text.includes("m") || text.includes("x5m"));
+    if (isBmwX5M(req)) {
+      const compact = compactText(text);
+      return compact.includes("x5m") || text.includes("x5 m") || text.includes("x5-m");
     }
-    if (modelText.includes("x5")) return text.includes("x5");
+    if (isBmwX5(req)) return text.includes("x5");
   }
 
   if (req.category === "real_estate") {
@@ -207,9 +233,9 @@ function isRelevantListing(req: PriceRequest, item: MarketListing): boolean {
 function minimumRelevantPriceRon(req: PriceRequest): number {
   const modelText = normalizeModelText(req);
   if (req.category === "cars") {
-    if (modelText.includes("x5m") || modelText.includes("x5 m")) return 100_000;
-    if (modelText.includes("x5")) return 35_000;
-    if (containsAny(modelText, ["bmw", "mercedes", "audi", "porsche", "lexus"])) return 15_000;
+    if (isBmwX5M(req)) return 125_000;
+    if (isBmwX5(req)) return 45_000;
+    if (containsAny(modelText, ["bmw", "mercedes", "audi", "porsche", "lexus"])) return 20_000;
     return 5_000;
   }
   if (req.category === "real_estate") return 30_000;
@@ -219,8 +245,10 @@ function minimumRelevantPriceRon(req: PriceRequest): number {
 function premiumSpecificRange(req: PriceRequest): { min: number; max: number } | null {
   const modelText = normalizeModelText(req);
   if (req.category === "cars") {
-    if (modelText.includes("x5m") || modelText.includes("x5 m")) return { min: 150_000, max: 230_000 }; // ~30k-46k EUR
-    if (modelText.includes("x5") && modelText.includes("bmw")) return { min: 55_000, max: 180_000 };
+    // These are already second-hand market ranges in RON, not new-car values.
+    // Do not apply heavy depreciation again in heuristicPrice().
+    if (isBmwX5M(req)) return { min: 150_000, max: 230_000 }; // ~30k-46k EUR
+    if (isBmwX5(req) && modelText.includes("bmw")) return { min: 55_000, max: 180_000 };
     if (modelText.includes("m5") && modelText.includes("bmw")) return { min: 100_000, max: 350_000 };
     if (modelText.includes("rs6") || modelText.includes("rs 6")) return { min: 120_000, max: 400_000 };
   }
@@ -290,34 +318,63 @@ function heuristicPrice(req: PriceRequest): PriceResponse {
 
   const year = parseInt(attrs.an_fabricatie || attrs.an || "0");
   const age = year > 0 ? new Date().getFullYear() - year : 0;
-  const yearFactor = age <= 0 ? 1 : age <= 3 ? 0.85 : age <= 6 ? 0.7 : age <= 10 ? 0.52 : 0.35;
+  const yearFactor = age <= 0 ? 1 : age <= 3 ? 0.95 : age <= 6 ? 0.88 : age <= 10 ? 0.78 : 0.68;
 
   const km = parseInt((attrs.kilometraj || "0").replace(/[^0-9]/g, ""));
-  const kmFactor = km <= 0 ? 1 : km < 80000 ? 0.9 : km < 160000 ? 0.72 : km < 260000 ? 0.55 : 0.38;
+  const kmFactor = km <= 0 ? 1 : km < 80000 ? 1 : km < 160000 ? 0.92 : km < 260000 ? 0.82 : 0.7;
 
   const sqm = parseInt((attrs.suprafata || "0").replace(/[^0-9]/g, ""));
   const sqmFactor = sqm > 0 ? Math.max(0.5, Math.min(3.5, sqm / 70)) : 1;
 
-  const brand = (attrs.marca || attrs.brand || "").toLowerCase();
+  const brandText = `${attrs.marca || attrs.brand || ""} ${req.title}`.toLowerCase();
   const premiumBrands = ["bmw", "mercedes", "audi", "porsche", "lexus", "apple", "samsung", "sony", "lg"];
-  const brandFactor = premiumBrands.some((b) => brand.includes(b)) ? 1.25 : 1;
+  const brandFactor = premiumBrands.some((b) => brandText.includes(b)) ? 1.15 : 1;
 
   let factor = conditionMult * brandFactor;
-  if (req.category === "cars") factor *= yearFactor * kmFactor;
-  else if (req.category === "real_estate") factor *= sqmFactor;
-  else factor *= yearFactor;
 
-  factor = Math.max(0.08, Math.min(1.6, factor));
+  if (req.category === "cars") {
+    // For known premium models, baseRange is already a used-market range,
+    // so condition/year/km should only fine tune, not depreciate twice.
+    if (specificRange) {
+      const carCondition: Record<string, number> = {
+        new: 1.08,
+        like_new: 1,
+        good: 0.92,
+        fair: 0.78,
+        poor: 0.58,
+      };
+      factor = carCondition[req.condition] || 0.9;
+      if (year > 0) factor *= yearFactor;
+      if (km > 0) factor *= kmFactor;
+      factor = Math.max(0.65, Math.min(1.15, factor));
+    } else {
+      factor *= yearFactor * kmFactor;
+      factor = Math.max(0.15, Math.min(1.6, factor));
+    }
+  } else if (req.category === "real_estate") {
+    factor *= sqmFactor;
+    factor = Math.max(0.25, Math.min(3.5, factor));
+  } else {
+    factor *= yearFactor;
+    factor = Math.max(0.08, Math.min(1.6, factor));
+  }
+
   const raw = ((baseRange.min + baseRange.max) / 2) * factor;
-  const suggested = Math.round(raw / 10) * 10;
-  const priceMin = Math.round((suggested * 0.8) / 10) * 10;
-  const priceMax = Math.round((suggested * 1.2) / 10) * 10;
+  const suggested = Math.round(raw / 100) * 100;
+
+  // Keep the displayed interval anchored to the known market range for special models.
+  const priceMin = specificRange
+    ? Math.round(Math.max(baseRange.min, suggested * 0.88) / 100) * 100
+    : Math.round((suggested * 0.8) / 100) * 100;
+  const priceMax = specificRange
+    ? Math.round(Math.min(baseRange.max, suggested * 1.14) / 100) * 100
+    : Math.round((suggested * 1.2) / 100) * 100;
 
   return {
     suggested_price: suggested,
     price_min: priceMin,
     price_max: priceMax,
-    reasoning: `Estimare interna calculata din categorie, stare si caracteristici${specificRange ? ", cu interval special pentru model premium" : ""}. Pentru comparatie live cu OLX/Autovit/Storia, adauga SERPAPI_KEY in Supabase Edge Function secrets.`,
+    reasoning: `Estimare interna calculata din categorie, stare si caracteristici${specificRange ? ", cu interval special pentru model premium si preturi second-hand in EUR" : ""}. Pentru auto, cautarea live foloseste Autovit, mobile.de si AutoScout24 cand SERPAPI_KEY este configurat.`,
     market_sources: ["Estimare interna", ...(SOURCE_DOMAINS[req.category] || SOURCE_DOMAINS.other)],
     confidence: Object.keys(attrs).length >= 3 ? "medium" : "low",
   };
